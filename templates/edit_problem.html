@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+{% block title %}{% if problem %}문제 편집{% else %}새 문제{% endif %} — Python 평가{% endblock %}
+{% block main_class %}max-w-4xl mx-auto px-4 py-8{% endblock %}
+
+{% block head %}
+<style>
+  #template-editor { height: 200px; border-radius: 0.5rem; overflow: hidden; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/dashboard" class="text-gray-400 hover:text-gray-600 transition">← 대시보드</a>
+  <h2 class="text-xl font-bold text-gray-800">
+    {% if problem %}문제 편집{% else %}새 문제 만들기{% endif %}
+  </h2>
+  <button onclick="openGenerateModal()"
+          class="ml-auto flex items-center gap-1.5 bg-purple-600 text-white
+                 px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition">
+    🤖 AI 문제 생성
+  </button>
+</div>
+
+<!-- AI 문제 생성 모달 -->
+<div id="modal-generate"
+     class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+    <h3 class="text-lg font-bold text-gray-800 mb-5">🤖 AI로 문제 자동 생성</h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">주제 / 단원 *</label>
+        <input id="gen-topic" type="text"
+               placeholder="예: 반복문, 리스트, 함수, 딕셔너리"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-purple-400">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">난이도</label>
+        <select id="gen-difficulty"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-purple-400">
+          <option value="쉬움">쉬움 (입문)</option>
+          <option value="보통" selected>보통 (기초)</option>
+          <option value="어려움">어려움 (심화)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          학습 개념 <span class="text-gray-400 font-normal">(선택)</span>
+        </label>
+        <input id="gen-concept" type="text"
+               placeholder="예: for 반복문, range(), append()"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-purple-400">
+      </div>
+    </div>
+    <div id="gen-status" class="mt-4 text-sm text-gray-500 hidden"></div>
+    <div class="flex gap-3 mt-6">
+      <button onclick="generateProblem()"
+              id="btn-generate"
+              class="flex-1 bg-purple-600 text-white py-2 rounded-lg font-medium
+                     hover:bg-purple-700 transition">
+        생성하기
+      </button>
+      <button onclick="closeGenerateModal()"
+              class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium
+                     hover:bg-gray-200 transition">
+        취소
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-6">
+
+  <!-- 제목 -->
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">문제 제목 *</label>
+    <input id="title" type="text"
+           value="{{ problem.title if problem else '' }}"
+           placeholder="예: 두 수의 합 구하기"
+           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+  </div>
+
+  <!-- 문제 설명 -->
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">문제 설명 * <span class="text-gray-400 font-normal">(HTML 가능)</span></label>
+    <textarea id="description" rows="8"
+              placeholder="문제 설명, 입출력 형식, 예제를 작성해주세요. HTML 태그 사용 가능합니다."
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono
+                     focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y">{{ problem.description if problem else '' }}</textarea>
+  </div>
+
+  <!-- 제약 조건 -->
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">제약 조건</label>
+    <textarea id="constraints" rows="2"
+              placeholder="예: 1 ≤ N ≤ 1000, 입력은 정수만 주어짐"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y">{{ problem.constraints if problem else '' }}</textarea>
+  </div>
+
+  <!-- 템플릿 코드 -->
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">
+      시작 코드 (선택사항)
+      <span class="text-gray-400 font-normal">— 학생에게 제공할 기본 코드</span>
+    </label>
+    <div id="template-editor"></div>
+  </div>
+
+  <!-- 시간 제한 + 활성화 -->
+  <div class="flex items-center gap-6">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">시간 제한 (초)</label>
+      <input id="time-limit" type="number" min="1" max="30"
+             value="{{ problem.time_limit if problem else 5 }}"
+             class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24
+                    focus:outline-none focus:ring-2 focus:ring-blue-400">
+    </div>
+    <div class="flex items-center gap-2 pt-5">
+      <input type="checkbox" id="active" class="w-4 h-4 rounded"
+             {% if not problem or problem.active %}checked{% endif %}>
+      <label for="active" class="text-sm font-medium text-gray-700">문제 활성화</label>
+    </div>
+  </div>
+
+  <!-- 테스트 케이스 -->
+  <div>
+    <div class="flex items-center justify-between mb-3">
+      <label class="text-sm font-medium text-gray-700">테스트 케이스 *</label>
+      <button onclick="addTestCase()"
+              class="text-sm text-blue-600 hover:underline flex items-center gap-1">
+        + 테스트 케이스 추가
+      </button>
+    </div>
+    <div id="test-cases" class="space-y-3"></div>
+    <p class="text-xs text-gray-400 mt-2">
+      숨기기 체크 시 학생에게 입력/예상 출력이 표시되지 않습니다 (블라인드 채점).
+    </p>
+  </div>
+
+  <!-- 저장 버튼 -->
+  <div class="flex gap-3 pt-2">
+    <button onclick="saveProblem()"
+            class="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+      저장
+    </button>
+    <a href="/dashboard"
+       class="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-200 transition">
+      취소
+    </a>
+    {% if problem %}
+    <button onclick="previewProblem()"
+            class="bg-green-100 text-green-700 px-6 py-2 rounded-lg font-medium hover:bg-green-200 transition">
+      미리보기
+    </button>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script>
+const PROBLEM_ID = {{ problem.id | tojson if problem else 'null' }};
+const EXISTING = {{ problem | tojson if problem else 'null' }};
+
+let templateEditor;
+let testCaseCount = 0;
+
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+require(['vs/editor/editor.main'], function () {
+  templateEditor = monaco.editor.create(document.getElementById('template-editor'), {
+    value: EXISTING?.template_code || '# 여기에 시작 코드를 작성하세요\n',
+    language: 'python',
+    theme: 'vs-dark',
+    fontSize: 13,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    lineNumbers: 'off',
+    padding: { top: 8, bottom: 8 },
+  });
+
+  // 기존 테스트 케이스 로드
+  const existing = EXISTING ? JSON.parse(EXISTING.test_cases || '[]') : [];
+  if (existing.length > 0) {
+    existing.forEach(tc => addTestCase(tc));
+  } else {
+    addTestCase();  // 기본 1개 추가
+  }
+});
+
+function addTestCase(data = {}) {
+  testCaseCount++;
+  const idx = testCaseCount;
+  const div = document.createElement('div');
+  div.id = 'tc-' + idx;
+  div.className = 'border border-gray-200 rounded-lg p-4 bg-gray-50';
+  div.innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-sm font-medium text-gray-700">테스트 ${idx}</span>
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+          <input type="checkbox" class="tc-hidden" ${data.show === false ? 'checked' : ''}> 숨기기
+        </label>
+        <button onclick="removeTestCase(${idx})" class="text-xs text-red-400 hover:text-red-600">삭제</button>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">입력 (stdin)</label>
+        <textarea class="tc-input w-full border border-gray-200 rounded px-2 py-1.5 text-xs font-mono
+                         bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                  rows="3" placeholder="입력값 (없으면 비워두기)">${data.input || ''}</textarea>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 mb-1 block">예상 출력 *</label>
+        <textarea class="tc-expected w-full border border-gray-200 rounded px-2 py-1.5 text-xs font-mono
+                         bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                  rows="3" placeholder="정확한 출력값">${data.expected_output || ''}</textarea>
+      </div>
+    </div>
+  `;
+  document.getElementById('test-cases').appendChild(div);
+}
+
+function removeTestCase(idx) {
+  const el = document.getElementById('tc-' + idx);
+  if (el) el.remove();
+}
+
+function collectTestCases() {
+  const cases = [];
+  document.querySelectorAll('[id^="tc-"]').forEach(div => {
+    const input = div.querySelector('.tc-input').value;
+    const expected = div.querySelector('.tc-expected').value;
+    const hidden = div.querySelector('.tc-hidden').checked;
+    if (expected.trim()) {
+      cases.push({ input, expected_output: expected, show: !hidden });
+    }
+  });
+  return cases;
+}
+
+async function saveProblem() {
+  const title = document.getElementById('title').value.trim();
+  const description = document.getElementById('description').value.trim();
+  if (!title) { alert('문제 제목을 입력해주세요.'); return; }
+  if (!description) { alert('문제 설명을 입력해주세요.'); return; }
+  const testCases = collectTestCases();
+  if (!testCases.length) { alert('테스트 케이스를 최소 1개 이상 추가해주세요.'); return; }
+
+  const payload = {
+    title,
+    description,
+    template_code: templateEditor ? templateEditor.getValue() : '',
+    constraints: document.getElementById('constraints').value,
+    time_limit: parseInt(document.getElementById('time-limit').value) || 5,
+    active: document.getElementById('active').checked,
+    test_cases: testCases,
+  };
+
+  const url = PROBLEM_ID ? `/dashboard/problem/${PROBLEM_ID}` : '/dashboard/problem/new';
+  const method = PROBLEM_ID ? 'PUT' : 'POST';
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    alert(data.message || '저장되었습니다.');
+    location.href = '/dashboard';
+  } catch (e) {
+    alert('저장 실패: ' + e.message);
+  }
+}
+
+function previewProblem() {
+  window.open('/problem/' + PROBLEM_ID, '_blank');
+}
+
+// ── AI 문제 생성 ───────────────────────────────────────────────
+function openGenerateModal() {
+  document.getElementById('modal-generate').classList.remove('hidden');
+  document.getElementById('gen-topic').focus();
+}
+
+function closeGenerateModal() {
+  document.getElementById('modal-generate').classList.add('hidden');
+  document.getElementById('gen-status').classList.add('hidden');
+}
+
+async function generateProblem() {
+  const topic   = document.getElementById('gen-topic').value.trim();
+  const diff    = document.getElementById('gen-difficulty').value;
+  const concept = document.getElementById('gen-concept').value.trim();
+  if (!topic) { alert('주제를 입력해주세요.'); return; }
+
+  const btn    = document.getElementById('btn-generate');
+  const status = document.getElementById('gen-status');
+  btn.disabled = true;
+  btn.textContent = '생성 중...';
+  status.classList.remove('hidden');
+  status.textContent = '⏳ Claude가 문제를 만들고 있습니다. 10~20초 정도 걸릴 수 있습니다...';
+
+  try {
+    const res = await fetch('/api/generate_problem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, difficulty: diff, concept }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      status.textContent = '❌ ' + (data.error || '생성 실패');
+      return;
+    }
+
+    // 폼 채우기
+    document.getElementById('title').value       = data.title || '';
+    document.getElementById('description').value = data.description || '';
+    document.getElementById('constraints').value = data.constraints || '';
+    if (templateEditor) {
+      templateEditor.setValue(data.template_code || '# 여기에 코드를 작성하세요\n');
+    }
+
+    // 테스트 케이스 교체
+    document.getElementById('test-cases').innerHTML = '';
+    testCaseCount = 0;
+    (data.test_cases || []).forEach(tc => addTestCase({
+      input: tc.input || '',
+      expected_output: tc.expected_output || '',
+      show: tc.show !== false,
+    }));
+
+    status.textContent = '✅ 문제가 생성되었습니다! 내용을 확인하고 저장해주세요.';
+    setTimeout(closeGenerateModal, 1500);
+  } catch (e) {
+    status.textContent = '오류: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '생성하기';
+  }
+}
+</script>
+{% endblock %}

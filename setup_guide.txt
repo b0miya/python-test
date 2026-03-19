@@ -1,0 +1,80 @@
+══════════════════════════════════════════════════════
+  Python 코딩 평가 시스템 — 설정 가이드
+══════════════════════════════════════════════════════
+
+■ STEP 1 — 패키지 설치
+──────────────────────
+  pip install -r requirements.txt
+
+
+■ STEP 2 — Google Cloud 설정
+──────────────────────────────
+1. https://console.cloud.google.com 접속
+2. 새 프로젝트 생성 (예: python-classroom)
+3. "API 및 서비스" > "라이브러리" 에서 다음 API 활성화:
+   - Google Classroom API
+   - Google+ API (또는 People API)
+
+4. "API 및 서비스" > "사용자 인증 정보" > "사용자 인증 정보 만들기" > "OAuth 클라이언트 ID"
+   - 애플리케이션 유형: 웹 애플리케이션
+   - 승인된 리디렉션 URI 추가:
+     http://localhost:5000/auth/callback
+   - 생성 후 클라이언트 ID와 시크릿 복사
+
+5. "OAuth 동의 화면" 설정:
+   - 앱 이름, 지원 이메일 입력
+   - 범위 추가: .../auth/classroom.courses.readonly,
+                .../auth/classroom.coursework.students,
+                .../auth/classroom.rosters.readonly
+   - 테스트 사용자: 교사/학생 이메일 추가 (개발 중에는 필수)
+
+
+■ STEP 3 — 환경변수 설정
+──────────────────────────
+  .env.example 파일을 복사하여 .env 로 저장:
+
+  GOOGLE_CLIENT_ID=발급받은_클라이언트_ID
+  GOOGLE_CLIENT_SECRET=발급받은_클라이언트_시크릿
+  TEACHER_EMAILS=교사이메일@school.edu
+  SECRET_KEY=임의의_랜덤_문자열
+
+
+■ STEP 4 — 앱 실행
+──────────────────
+  python run.py
+
+  브라우저에서 http://localhost:5000 접속
+
+
+■ STEP 5 — 교사 작업 흐름
+───────────────────────────
+1. http://localhost:5000 접속 → Google 로그인
+2. /dashboard 에서 "새 문제 만들기"
+3. 문제 제목, 설명, 테스트 케이스 입력 후 저장
+4. 생성된 과제 링크 복사
+   예: http://localhost:5000/problem/1?course_id=XXX&coursework_id=YYY
+5. Google Classroom에서 과제 게시 시
+   링크 내 COURSE_ID, COURSEWORK_ID를 실제 값으로 교체
+
+   COURSE_ID: Classroom URL의 /c/ 다음 값
+   COURSEWORK_ID: 과제 URL의 /a/ 다음 값
+
+
+■ STEP 6 — 학생 작업 흐름
+───────────────────────────
+1. Google Classroom에서 과제 링크 클릭
+2. Google 계정으로 로그인 (자동 처리)
+3. 문제 확인 후 Python 코드 작성
+4. "실행" 버튼으로 테스트
+5. "제출" 버튼으로 채점
+   → 점수가 Google Classroom 성적에 자동 반영
+
+
+■ 배포 시 주의사항
+──────────────────
+- OAUTHLIB_INSECURE_TRANSPORT=1 제거 (HTTPS 필수)
+- Google Cloud OAuth 리디렉션 URI를 실제 도메인으로 변경
+- SECRET_KEY를 강한 랜덤 값으로 설정
+- debug=False 로 변경
+
+══════════════════════════════════════════════════════

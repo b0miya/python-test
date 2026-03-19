@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+{% block title %}{{ problem.title }} — Python 평가{% endblock %}
+
+{% block head %}
+<style>
+  body { overflow: hidden; }
+  #editor { width: 100%; height: 100%; }
+  .resizer {
+    width: 6px; background: #e5e7eb; cursor: col-resize;
+    transition: background .2s;
+  }
+  .resizer:hover { background: #3b82f6; }
+  pre { white-space: pre-wrap; word-break: break-all; }
+</style>
+{% endblock %}
+
+{% block main_class %}{% endblock %}
+
+{% block content %}
+<!-- 상단 헤더 -->
+<div class="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <span class="text-sm font-semibold text-gray-800 truncate max-w-xs">{{ problem.title }}</span>
+    {% if problem.time_limit %}
+    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">⏱ {{ problem.time_limit }}초</span>
+    {% endif %}
+  </div>
+  <div class="flex items-center gap-2">
+    <button id="btn-run"
+            onclick="runCode()"
+            class="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700
+                   px-3 py-1.5 rounded-lg text-sm font-medium transition">
+      ▶ 실행
+    </button>
+    <button id="btn-submit"
+            onclick="submitCode()"
+            class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white
+                   px-4 py-1.5 rounded-lg text-sm font-medium transition">
+      제출 →
+    </button>
+  </div>
+</div>
+
+<!-- 메인 레이아웃: 문제설명 | 에디터 -->
+<div class="flex" style="height: calc(100vh - 100px);" id="layout">
+
+  <!-- 왼쪽: 문제 설명 -->
+  <div id="panel-left" class="w-2/5 overflow-y-auto bg-white border-r border-gray-200 flex-shrink-0">
+    <div class="p-5">
+      <h2 class="text-xl font-bold text-gray-900 mb-4">{{ problem.title }}</h2>
+
+      <div class="prose prose-sm max-w-none text-gray-700 leading-relaxed mb-5">
+        {{ problem.description | safe }}
+      </div>
+
+      {% if problem.constraints %}
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+        <p class="text-xs font-semibold text-amber-700 mb-1">제약 조건</p>
+        <p class="text-sm text-amber-800 whitespace-pre-line">{{ problem.constraints }}</p>
+      </div>
+      {% endif %}
+
+      {% if submission %}
+      <div class="mt-6 bg-{% if submission.score == 100 %}green{% elif submission.score >= 60 %}yellow{% else %}red{% endif %}-50
+                  border border-{% if submission.score == 100 %}green{% elif submission.score >= 60 %}yellow{% else %}red{% endif %}-200
+                  rounded-lg p-4">
+        <p class="text-sm font-semibold text-gray-700 mb-1">마지막 제출 결과</p>
+        <p class="text-2xl font-bold
+                  {% if submission.score == 100 %}text-green-600
+                  {% elif submission.score >= 60 %}text-yellow-600
+                  {% else %}text-red-600{% endif %}">
+          {{ submission.score }}점
+        </p>
+        <p class="text-xs text-gray-500 mt-1">
+          {{ submission.passed_cases }}/{{ submission.total_cases }} 테스트 통과 · {{ submission.submitted_at }}
+        </p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 드래그 핸들 -->
+  <div class="resizer" id="resizer"></div>
+
+  <!-- 오른쪽: 에디터 + 출력 -->
+  <div id="panel-right" class="flex flex-col flex-1 overflow-hidden">
+
+    <!-- Monaco 에디터 영역 -->
+    <div id="editor-container" class="flex-1 overflow-hidden" style="min-height: 200px;"></div>
+
+    <!-- 아래: 입력/출력 패널 -->
+    <div class="border-t border-gray-200 bg-gray-900" style="height: 220px; overflow:hidden; display:flex; flex-direction:column;">
+      <!-- 탭 -->
+      <div class="flex border-b border-gray-700">
+        <button onclick="showTab('output')" id="tab-output"
+                class="tab-btn active px-4 py-2 text-xs font-medium text-white border-b-2 border-blue-500">
+          출력
+        </button>
+        <button onclick="showTab('input')" id="tab-input"
+                class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 hover:text-white transition border-b-2 border-transparent">
+          표준 입력 (stdin)
+        </button>
+        <button onclick="showTab('results')" id="tab-results"
+                class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 hover:text-white transition border-b-2 border-transparent">
+          채점 결과
+        </button>
+        <button onclick="showTab('ai')" id="tab-ai"
+                class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 hover:text-white transition border-b-2 border-transparent">
+          🤖 AI 피드백
+        </button>
+      </div>
+
+      <!-- 출력 패널 -->
+      <div id="panel-output" class="tab-content flex-1 overflow-y-auto p-3">
+        <pre id="output-text" class="text-green-400 text-xs font-mono leading-relaxed">실행 버튼을 눌러 코드를 테스트해보세요.</pre>
+      </div>
+
+      <!-- 입력 패널 -->
+      <div id="panel-input" class="tab-content flex-1 p-3 hidden">
+        <textarea id="stdin-input"
+                  class="w-full h-full bg-transparent text-gray-300 text-xs font-mono
+                         resize-none outline-none placeholder-gray-600"
+                  placeholder="테스트할 입력값을 여기에 입력하세요 (예: 5\n10)"></textarea>
+      </div>
+
+      <!-- 채점 결과 패널 -->
+      <div id="panel-results" class="tab-content flex-1 overflow-y-auto p-3 hidden">
+        <div id="results-content" class="text-xs text-gray-400">제출 후 채점 결과가 여기에 표시됩니다.</div>
+      </div>
+
+      <!-- AI 피드백 패널 -->
+      <div id="panel-ai" class="tab-content flex-1 overflow-y-auto p-3 hidden">
+        <div id="ai-content" class="text-xs text-gray-300 leading-relaxed">
+          제출 후 AI 피드백이 여기에 표시됩니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 제출 완료 모달 -->
+<div id="modal-submit" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center">
+    <div id="modal-icon" class="text-5xl mb-4">⏳</div>
+    <h3 id="modal-title" class="text-xl font-bold text-gray-800 mb-2">채점 중...</h3>
+    <p id="modal-score" class="text-4xl font-bold text-blue-600 mb-2 hidden"></p>
+    <p id="modal-detail" class="text-gray-500 text-sm mb-6"></p>
+    <button onclick="closeModal()"
+            class="hidden bg-blue-600 text-white px-6 py-2 rounded-lg font-medium
+                   hover:bg-blue-700 transition" id="modal-close-btn">
+      확인
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Monaco Editor -->
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script>
+const PROBLEM_ID = {{ problem.id }};
+const TEMPLATE = {{ problem.template_code | tojson }};
+
+let editor;
+
+// Monaco 에디터 초기화
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+require(['vs/editor/editor.main'], function () {
+  editor = monaco.editor.create(document.getElementById('editor-container'), {
+    value: TEMPLATE || '# 여기에 코드를 작성하세요\n',
+    language: 'python',
+    theme: 'vs-dark',
+    fontSize: 14,
+    lineHeight: 22,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    tabSize: 4,
+    insertSpaces: true,
+    wordWrap: 'on',
+    padding: { top: 12, bottom: 12 },
+  });
+
+  // Ctrl+Enter → 실행
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runCode);
+  // Shift+Enter → 제출
+  editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, submitCode);
+});
+
+// ── 탭 전환 ─────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    el.classList.remove('active', 'text-white', 'border-blue-500');
+    el.classList.add('text-gray-400', 'border-transparent');
+  });
+  document.getElementById('panel-' + name).classList.remove('hidden');
+  const btn = document.getElementById('tab-' + name);
+  btn.classList.add('text-white', 'border-blue-500');
+  btn.classList.remove('text-gray-400', 'border-transparent');
+}
+
+// ── 코드 실행 ─────────────────────────────────────────────────
+async function runCode() {
+  if (!editor) return;
+  const code = editor.getValue();
+  const stdin = document.getElementById('stdin-input').value;
+
+  document.getElementById('output-text').textContent = '실행 중...';
+  document.getElementById('output-text').className = 'text-yellow-400 text-xs font-mono leading-relaxed';
+  showTab('output');
+
+  document.getElementById('btn-run').disabled = true;
+
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, stdin }),
+    });
+    const data = await res.json();
+
+    const out = document.getElementById('output-text');
+    if (data.timed_out) {
+      out.textContent = data.stderr;
+      out.className = 'text-red-400 text-xs font-mono leading-relaxed';
+    } else if (data.stderr) {
+      out.textContent = (data.stdout || '') + '\n' + data.stderr;
+      out.className = 'text-red-400 text-xs font-mono leading-relaxed';
+    } else {
+      out.textContent = data.stdout || '(출력 없음)';
+      out.className = 'text-green-400 text-xs font-mono leading-relaxed';
+    }
+  } catch (e) {
+    document.getElementById('output-text').textContent = '요청 오류: ' + e.message;
+  } finally {
+    document.getElementById('btn-run').disabled = false;
+  }
+}
+
+// ── 코드 제출 & 채점 ──────────────────────────────────────────
+async function submitCode() {
+  if (!editor) return;
+  const code = editor.getValue();
+  if (!code.trim()) { alert('코드를 작성해주세요.'); return; }
+
+  showModal('⏳', '채점 중...', '', false);
+
+  document.getElementById('btn-submit').disabled = true;
+
+  try {
+    const res = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ problem_id: PROBLEM_ID, code }),
+    });
+    const data = await res.json();
+
+    // 채점 결과 탭 업데이트
+    renderResults(data);
+    showTab('results');
+
+    // 모달 결과 표시
+    const icon = data.score === 100 ? '🎉' : data.score >= 60 ? '👍' : '😢';
+    const title = data.score === 100 ? '완벽합니다!' : data.score >= 60 ? '부분 점수' : '다시 도전!';
+    showModal(icon, title, `${data.passed}/${data.total} 테스트 통과`, true, data.score);
+
+    // AI 피드백 비동기 로드
+    if (data.submission_id) {
+      fetchAIFeedback(data.submission_id);
+    }
+  } catch (e) {
+    closeModal();
+    alert('제출 오류: ' + e.message);
+  } finally {
+    document.getElementById('btn-submit').disabled = false;
+  }
+}
+
+async function fetchAIFeedback(subId) {
+  const aiContent = document.getElementById('ai-content');
+  const tabAI = document.getElementById('tab-ai');
+  tabAI.textContent = '🤖 AI 피드백 (분석 중...)';
+  aiContent.innerHTML = '<span class="text-yellow-400">⏳ Claude가 코드를 분석 중입니다...</span>';
+
+  try {
+    const res = await fetch(`/api/feedback/${subId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.feedback) {
+      aiContent.innerHTML = renderMarkdown(data.feedback);
+      tabAI.textContent = '🤖 AI 피드백 ✓';
+    } else {
+      aiContent.innerHTML = `<span class="text-red-400">${escHtml(data.error || 'AI 피드백 생성 실패')}</span>`;
+      tabAI.textContent = '🤖 AI 피드백';
+    }
+  } catch (e) {
+    aiContent.innerHTML = '<span class="text-red-400">AI 피드백 요청 오류</span>';
+    tabAI.textContent = '🤖 AI 피드백';
+  }
+}
+
+function renderMarkdown(text) {
+  // 간단한 마크다운 렌더링 (### 헤딩, **bold**, - 리스트)
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/### (.+)/g, '<h4 class="text-yellow-300 font-semibold mt-3 mb-1">$1</h4>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+    .replace(/^- (.+)/gm, '<li class="ml-4 list-disc text-gray-300">$1</li>')
+    .replace(/\n/g, '<br>');
+}
+
+function renderResults(data) {
+  const container = document.getElementById('results-content');
+  let html = `<div class="mb-3 flex items-center gap-3">
+    <span class="text-2xl font-bold ${data.score === 100 ? 'text-green-400' : data.score >= 60 ? 'text-yellow-400' : 'text-red-400'}">
+      ${data.score}점
+    </span>
+    <span class="text-gray-400">${data.passed}/${data.total} 통과</span>
+  </div>`;
+
+  data.results.forEach(r => {
+    const color = r.passed ? 'border-green-500 bg-green-950' : 'border-red-500 bg-red-950';
+    const icon = r.passed ? '✅' : '❌';
+    html += `<div class="border-l-2 ${color} pl-3 mb-2 rounded-r">
+      <p class="font-medium text-gray-200">${icon} 테스트 ${r.test_case}</p>
+      ${r.hidden ? '' : `
+        <p class="text-gray-400 mt-1">예상: <code class="text-yellow-300">${escHtml(r.expected)}</code></p>
+        <p class="text-gray-400">출력: <code class="${r.passed ? 'text-green-300' : 'text-red-300'}">${escHtml(r.actual)}</code></p>
+        ${r.error ? `<p class="text-red-400 mt-1">${escHtml(r.error)}</p>` : ''}
+      `}
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── 모달 ─────────────────────────────────────────────────────
+function showModal(icon, title, detail, showClose, score) {
+  document.getElementById('modal-icon').textContent = icon;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-detail').textContent = detail;
+  const scoreEl = document.getElementById('modal-score');
+  if (score !== undefined) {
+    scoreEl.textContent = score + '점';
+    scoreEl.classList.remove('hidden');
+  } else {
+    scoreEl.classList.add('hidden');
+  }
+  document.getElementById('modal-close-btn').classList.toggle('hidden', !showClose);
+  document.getElementById('modal-submit').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modal-submit').classList.add('hidden');
+}
+
+// ── 드래그 리사이저 ───────────────────────────────────────────
+const resizer = document.getElementById('resizer');
+const left = document.getElementById('panel-left');
+let isResizing = false;
+resizer.addEventListener('mousedown', e => { isResizing = true; e.preventDefault(); });
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const total = document.getElementById('layout').offsetWidth;
+  const newW = Math.max(250, Math.min(e.clientX, total - 300));
+  left.style.width = newW + 'px';
+  left.style.flexShrink = '0';
+});
+document.addEventListener('mouseup', () => { isResizing = false; });
+</script>
+{% endblock %}

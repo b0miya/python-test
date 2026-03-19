@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}제출 현황 — Python 평가{% endblock %}
+{% block main_class %}max-w-6xl mx-auto px-4 py-8{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-800">제출 현황</h2>
+    <p class="text-sm text-gray-500 mt-0.5">총 {{ submissions | length }}건</p>
+  </div>
+  <a href="/dashboard" class="text-sm text-gray-400 hover:text-gray-600 transition">← 대시보드</a>
+</div>
+
+<!-- 필터 -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-6">
+  <form method="get" class="flex items-center gap-3">
+    <label class="text-sm font-medium text-gray-700">문제 필터:</label>
+    <select name="problem_id" onchange="this.form.submit()"
+            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-blue-400">
+      <option value="">전체 문제</option>
+      {% for p in problems %}
+      <option value="{{ p.id }}" {% if selected_problem == p.id | string %}selected{% endif %}>
+        {{ p.title }}
+      </option>
+      {% endfor %}
+    </select>
+    {% if selected_problem %}
+    <a href="/dashboard/submissions" class="text-sm text-blue-600 hover:underline">초기화</a>
+    {% endif %}
+  </form>
+</div>
+
+{% if submissions %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+        <th class="px-4 py-3 text-left">학생</th>
+        <th class="px-4 py-3 text-left">문제</th>
+        <th class="px-4 py-3 text-center">점수</th>
+        <th class="px-4 py-3 text-center">통과</th>
+        <th class="px-4 py-3 text-left">제출 시각</th>
+        <th class="px-4 py-3 text-center">상세</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for s in submissions %}
+      <tr class="hover:bg-gray-50 transition">
+        <td class="px-4 py-3">
+          <p class="font-medium text-gray-800">{{ s.user_name }}</p>
+          <p class="text-xs text-gray-400">{{ s.user_email }}</p>
+        </td>
+        <td class="px-4 py-3 text-gray-700">{{ s.problem_title }}</td>
+        <td class="px-4 py-3 text-center">
+          <span class="font-bold text-base
+            {% if s.score == 100 %}text-green-600
+            {% elif s.score >= 60 %}text-yellow-600
+            {% else %}text-red-500{% endif %}">
+            {{ s.score }}점
+          </span>
+        </td>
+        <td class="px-4 py-3 text-center text-gray-600">
+          {{ s.passed_cases }}/{{ s.total_cases }}
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-xs">{{ s.submitted_at }}</td>
+        <td class="px-4 py-3 text-center">
+          <a href="/dashboard/submission/{{ s.id }}"
+             class="text-xs text-blue-600 hover:underline">코드 보기</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl border border-gray-100 p-16 text-center text-gray-400">
+  <p class="text-4xl mb-3">📭</p>
+  <p>제출된 답안이 없습니다.</p>
+</div>
+{% endif %}
+{% endblock %}

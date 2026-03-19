@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}제출 상세 — {{ sub.user_name }}{% endblock %}
+{% block main_class %}max-w-5xl mx-auto px-4 py-8{% endblock %}
+
+{% block head %}
+<style>#code-view { height: 400px; }</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/dashboard/submissions" class="text-gray-400 hover:text-gray-600 transition">← 제출 현황</a>
+  <h2 class="text-xl font-bold text-gray-800">제출 상세</h2>
+</div>
+
+<div class="grid grid-cols-3 gap-4 mb-6">
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">학생</p>
+    <p class="font-semibold text-gray-800">{{ sub.user_name }}</p>
+    <p class="text-xs text-gray-400">{{ sub.user_email }}</p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">점수</p>
+    <p class="text-3xl font-bold
+      {% if sub.score == 100 %}text-green-600
+      {% elif sub.score >= 60 %}text-yellow-600
+      {% else %}text-red-500{% endif %}">
+      {{ sub.score }}점
+    </p>
+    <p class="text-xs text-gray-400">{{ sub.passed_cases }}/{{ sub.total_cases }} 통과</p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+    <p class="text-xs text-gray-400 mb-1">제출 시각</p>
+    <p class="font-medium text-gray-700">{{ sub.submitted_at }}</p>
+    <p class="text-xs text-gray-400">{{ sub.problem_title }}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-2 gap-6">
+  <!-- 코드 -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-800 text-sm">제출 코드</h3>
+    </div>
+    <div id="code-view"></div>
+  </div>
+
+  <!-- 채점 결과 -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-800 text-sm">채점 결과</h3>
+    </div>
+    <div class="p-4 space-y-3 overflow-y-auto" style="max-height: 400px;">
+      {% for r in sub.result_detail %}
+      <div class="border-l-4 {% if r.passed %}border-green-500 bg-green-50{% else %}border-red-400 bg-red-50{% endif %} pl-3 py-2 rounded-r">
+        <p class="text-sm font-medium text-gray-800">
+          {% if r.passed %}✅{% else %}❌{% endif %} 테스트 {{ r.test_case }}
+        </p>
+        {% if not r.get('hidden', false) %}
+        <p class="text-xs text-gray-500 mt-1">예상: <code class="bg-gray-100 px-1 rounded">{{ r.expected }}</code></p>
+        <p class="text-xs text-gray-500">출력: <code class="bg-gray-100 px-1 rounded">{{ r.actual }}</code></p>
+        {% if r.error %}
+        <p class="text-xs text-red-500 mt-1">{{ r.error }}</p>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- AI 피드백 -->
+<div class="mt-6 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+  <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+    <h3 class="font-semibold text-gray-800 text-sm">🤖 AI 피드백 (Claude)</h3>
+    {% if not sub.ai_feedback_data %}
+    <button id="btn-generate-feedback"
+            onclick="generateFeedback()"
+            class="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition">
+      피드백 생성
+    </button>
+    {% endif %}
+  </div>
+  <div class="p-5">
+    {% if sub.ai_feedback_data %}
+      <div class="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-line">
+        {{ sub.ai_feedback_data.feedback }}
+      </div>
+      <p class="text-xs text-gray-400 mt-3">생성 모델: {{ sub.ai_feedback_data.model }}</p>
+    {% else %}
+      <div id="feedback-area" class="text-sm text-gray-400">
+        피드백 생성 버튼을 눌러 AI 분석을 요청하세요.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script>
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+require(['vs/editor/editor.main'], function () {
+  monaco.editor.create(document.getElementById('code-view'), {
+    value: {{ sub.code | tojson }},
+    language: 'python',
+    theme: 'vs',
+    readOnly: true,
+    fontSize: 13,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    automaticLayout: true,
+    lineNumbers: 'on',
+    padding: { top: 8 },
+  });
+});
+
+async function generateFeedback() {
+  const btn = document.getElementById('btn-generate-feedback');
+  const area = document.getElementById('feedback-area');
+  btn.disabled = true;
+  btn.textContent = '분석 중...';
+  area.textContent = '⏳ Claude가 코드를 분석 중입니다. 잠시 기다려주세요...';
+  try {
+    const res = await fetch('/api/feedback/{{ sub.id }}', { method: 'POST' });
+    const data = await res.json();
+    if (data.feedback) {
+      area.style.whiteSpace = 'pre-line';
+      area.className = 'text-sm text-gray-700 leading-relaxed whitespace-pre-line';
+      area.textContent = data.feedback;
+      btn.textContent = '✓ 완료';
+    } else {
+      area.textContent = '오류: ' + (data.error || '알 수 없는 오류');
+      btn.disabled = false;
+      btn.textContent = '다시 시도';
+    }
+  } catch (e) {
+    area.textContent = '요청 오류: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '다시 시도';
+  }
+}
+</script>
+{% endblock %}

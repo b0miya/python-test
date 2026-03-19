@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}홈 — Python 평가{% endblock %}
+{% block main_class %}max-w-4xl mx-auto px-4 py-8{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+  <h2 class="text-2xl font-bold text-gray-800">
+    안녕하세요, {{ user.name }}님 👋
+  </h2>
+  <p class="text-gray-500 mt-1">
+    교사가 Google Classroom에 게시한 과제 링크를 클릭하면 문제 풀기 화면으로 이동합니다.
+  </p>
+</div>
+
+{% if is_teacher %}
+<div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8 flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <span class="text-2xl">🎓</span>
+    <div>
+      <p class="font-semibold text-blue-800">교사 계정으로 로그인됨</p>
+      <p class="text-sm text-blue-600">문제 관리 및 제출 현황을 확인할 수 있습니다.</p>
+    </div>
+  </div>
+  <a href="/dashboard"
+     class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+    대시보드 →
+  </a>
+</div>
+{% endif %}
+
+<!-- 최근 제출 내역 -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+  <div class="px-6 py-4 border-b border-gray-100">
+    <h3 class="font-semibold text-gray-800">최근 제출 내역</h3>
+  </div>
+  {% if recent_submissions %}
+  <div class="divide-y divide-gray-50">
+    {% for sub in recent_submissions %}
+    <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition">
+      <div>
+        <p class="font-medium text-gray-800">{{ sub.problem_title }}</p>
+        <p class="text-xs text-gray-400 mt-0.5">{{ sub.submitted_at }}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-lg font-bold
+          {% if sub.score == 100 %}text-green-600
+          {% elif sub.score >= 60 %}text-yellow-600
+          {% else %}text-red-500{% endif %}">
+          {{ sub.score }}점
+        </span>
+        <span class="text-xs text-gray-400">{{ sub.passed_cases }}/{{ sub.total_cases }} 통과</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="px-6 py-12 text-center text-gray-400">
+    <p class="text-4xl mb-3">📝</p>
+    <p>아직 제출한 문제가 없습니다.</p>
+    <p class="text-sm mt-1">교사가 게시한 과제 링크를 클릭해주세요.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
