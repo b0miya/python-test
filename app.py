@@ -50,7 +50,7 @@ def teacher_required(f):
     def decorated(*args, **kwargs):
         if 'user' not in session:
             return redirect(url_for('index'))
-        if session['user']['email'] not in TEACHER_EMAILS:
+        if session['user']['email'] not in get_teacher_emails():
             return render_template('error.html', message='교사 권한이 필요합니다.'), 403
         return f(*args, **kwargs)
     return decorated
@@ -94,7 +94,7 @@ def home():
 
 @app.route('/auth/login')
 def auth_login():
-    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+    if not app.config.get('GOOGLE_CLIENT_ID') or not app.config.get('GOOGLE_CLIENT_SECRET'):
         return render_template('error.html',
                                message='.env 파일에 GOOGLE_CLIENT_ID와 GOOGLE_CLIENT_SECRET을 설정해주세요.')
     redirect_uri = url_for('auth_callback', _external=True)
