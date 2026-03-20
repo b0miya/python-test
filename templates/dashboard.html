@@ -6,7 +6,7 @@
 <div class="flex items-center justify-between mb-8">
   <div>
     <h2 class="text-2xl font-bold text-gray-800">교사 대시보드</h2>
-    <p class="text-gray-500 text-sm mt-1">문제를 관리하고 Google Classroom 과제 링크를 생성하세요.</p>
+    <p class="text-gray-500 text-sm mt-1">문제를 관리하고 학생들에게 링크를 공유하세요.</p>
   </div>
   <a href="/dashboard/problem/new"
      class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2">
@@ -86,14 +86,14 @@
           <div class="flex items-center gap-1">
             <input readonly
                    id="link-{{ p.id }}"
-                   value="{{ request.host_url }}problem/{{ p.id }}?course_id=COURSE_ID&coursework_id=COURSEWORK_ID"
+                   value="{{ request.host_url }}problem/{{ p.id }}"
                    class="text-xs bg-gray-50 border border-gray-200 rounded px-2 py-1 w-64 text-gray-500 font-mono">
             <button onclick="copyLink({{ p.id }})"
                     class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition text-gray-600">
               복사
             </button>
           </div>
-          <p class="text-xs text-gray-400 mt-1">COURSE_ID와 COURSEWORK_ID를 실제 값으로 교체하세요</p>
+          <p class="text-xs text-gray-400 mt-1">이 링크를 Classroom 과제에 붙여넣으세요</p>
         </td>
         <td class="px-4 py-4 text-center">
           <div class="flex items-center justify-center gap-2">
@@ -119,15 +119,14 @@
 </div>
 {% endif %}
 
-<!-- Google Classroom 연동 안내 -->
+<!-- 학생 공유 안내 -->
 <div class="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-5">
-  <h3 class="font-semibold text-blue-800 mb-2">📌 Google Classroom 연동 방법</h3>
+  <h3 class="font-semibold text-blue-800 mb-2">📌 학생에게 문제 공유하는 방법</h3>
   <ol class="text-sm text-blue-700 space-y-1 list-decimal list-inside">
     <li>위 표에서 문제의 <strong>과제 링크</strong>를 복사합니다.</li>
-    <li>Google Classroom에서 과제를 만들고, 링크에 <strong>COURSE_ID</strong>와 <strong>COURSEWORK_ID</strong>를 실제 값으로 교체합니다.</li>
-    <li>Classroom URL에서 Course ID: <code class="bg-blue-100 px-1 rounded">classroom.google.com/c/<strong>[COURSE_ID]</strong></code></li>
-    <li>과제 URL에서 Coursework ID: <code class="bg-blue-100 px-1 rounded">classroom.google.com/c/…/a/<strong>[COURSEWORK_ID]</strong></code></li>
-    <li>학생이 제출하면 Classroom에 성적이 자동으로 기록됩니다.</li>
+    <li>Google Classroom 과제에 링크를 붙여넣거나, 카카오톡·이메일 등으로 공유합니다.</li>
+    <li>학생이 링크 클릭 → Google 계정 로그인 → 문제 풀기 → 제출 순으로 진행됩니다.</li>
+    <li>제출 결과는 <strong>제출 현황</strong> 메뉴에서 실시간으로 확인할 수 있습니다.</li>
   </ol>
 </div>
 {% endblock %}
@@ -137,7 +136,7 @@
 function copyLink(id) {
   const input = document.getElementById('link-' + id);
   navigator.clipboard.writeText(input.value).then(() => {
-    alert('링크가 복사되었습니다!\nCOURSE_ID와 COURSEWORK_ID를 실제 값으로 교체하세요.');
+    alert('링크가 복사되었습니다!');
   });
 }
 
