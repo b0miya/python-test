@@ -6,11 +6,13 @@ from functools import wraps
 
 from flask import Flask, redirect, url_for, session, request, render_template, jsonify, g
 from authlib.integrations.flask_client import OAuth
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from database import init_db, get_db
 from grader import grade_submission, run_code, get_ai_feedback, generate_problem_with_ai
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 TEACHER_EMAILS = []
