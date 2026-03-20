@@ -13,19 +13,21 @@ from grader import grade_submission, run_code, get_ai_feedback, generate_problem
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
-GOOGLE_CLIENT_ID     = os.environ.get('GOOGLE_CLIENT_ID', '')
-GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
-TEACHER_EMAILS = [e.strip() for e in os.environ.get('TEACHER_EMAILS', '').split(',') if e.strip()]
+TEACHER_EMAILS = []
 
-# 개발 환경에서 HTTP 허용 (배포 시 제거)
+def get_teacher_emails():
+    return [e.strip() for e in os.environ.get('TEACHER_EMAILS', '').split(',') if e.strip()]
+
+# 개발 환경에서 HTTP 허용
 os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', '1')
 
-# ── Google OAuth (로그인 전용, Classroom 연동 없음) ───────────────
+# ── Google OAuth (앱 config로 동적 읽기) ──────────────────────────
+app.config['GOOGLE_CLIENT_ID']     = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET', '').strip()
+
 oauth = OAuth(app)
 google = oauth.register(
     name='google',
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={'scope': 'openid email profile'},
 )
@@ -79,7 +81,7 @@ def index():
 @login_required
 def home():
     user = session['user']
-    is_teacher = user['email'] in TEACHER_EMAILS
+    is_teacher = user["email"] in get_teacher_emails()
     db = get_db()
     recent = db.execute('''
         SELECT s.*, p.title as problem_title
@@ -153,7 +155,7 @@ def problem(problem_id):
         'problem.html',
         problem=dict(prob),
         user=user,
-        is_teacher=user['email'] in TEACHER_EMAILS,
+        is_teacher=user["email"] in get_teacher_emails(),
         submission=dict(submission) if submission else None,
     )
 
@@ -222,7 +224,7 @@ def api_feedback(sub_id):
     sub = dict(row)
     # 본인 제출 또는 교사만 허용
     user = session['user']
-    if sub['user_id'] != user['id'] and user['email'] not in TEACHER_EMAILS:
+    if sub['user_id'] != user['id'] and user["email"] not in get_teacher_emails():
         return jsonify({'error': '권한이 없습니다.'}), 403
 
     # 이미 생성된 피드백이 있으면 그대로 반환
