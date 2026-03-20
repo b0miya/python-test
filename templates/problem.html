@@ -92,13 +92,13 @@
     <div class="border-t border-gray-200 bg-gray-900" style="height: 220px; overflow:hidden; display:flex; flex-direction:column;">
       <!-- 탭 -->
       <div class="flex border-b border-gray-700">
-        <button onclick="showTab('output')" id="tab-output"
-                class="tab-btn active px-4 py-2 text-xs font-medium text-white border-b-2 border-blue-500">
-          출력
-        </button>
         <button onclick="showTab('input')" id="tab-input"
-                class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 hover:text-white transition border-b-2 border-transparent">
+                class="tab-btn active px-4 py-2 text-xs font-medium text-white border-b-2 border-blue-500">
           표준 입력 (stdin)
+        </button>
+        <button onclick="showTab('output')" id="tab-output"
+                class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 hover:text-white transition border-b-2 border-transparent">
+          출력
         </button>
         <button onclick="showTab('results')" id="tab-results"
                 class="tab-btn px-4 py-2 text-xs font-medium text-gray-400 hover:text-white transition border-b-2 border-transparent">
@@ -110,17 +110,17 @@
         </button>
       </div>
 
-      <!-- 출력 패널 -->
-      <div id="panel-output" class="tab-content flex-1 overflow-y-auto p-3">
-        <pre id="output-text" class="text-green-400 text-xs font-mono leading-relaxed">실행 버튼을 눌러 코드를 테스트해보세요.</pre>
-      </div>
-
-      <!-- 입력 패널 -->
-      <div id="panel-input" class="tab-content flex-1 p-3 hidden">
+      <!-- 입력 패널 (기본 표시) -->
+      <div id="panel-input" class="tab-content flex-1 p-3">
         <textarea id="stdin-input"
                   class="w-full h-full bg-transparent text-gray-300 text-xs font-mono
                          resize-none outline-none placeholder-gray-600"
                   placeholder="테스트할 입력값을 여기에 입력하세요 (예: 5\n10)"></textarea>
+      </div>
+
+      <!-- 출력 패널 -->
+      <div id="panel-output" class="tab-content flex-1 overflow-y-auto p-3 hidden">
+        <pre id="output-text" class="text-green-400 text-xs font-mono leading-relaxed">실행 버튼을 눌러 코드를 테스트해보세요.</pre>
       </div>
 
       <!-- 채점 결과 패널 -->
