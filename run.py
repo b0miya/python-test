@@ -1,7 +1,7 @@
 """앱 실행 진입점 — 환경변수 자동 로드"""
 import os
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=False)  # Railway 환경변수 우선, .env는 로컬에서만
 
 from database import init_db
 from app import app
