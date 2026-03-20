@@ -11,13 +11,6 @@ init_db()
 port = int(os.environ.get('PORT', 5000))
 debug = os.environ.get('RAILWAY_ENVIRONMENT') is None
 
-# 환경변수 확인 로그
-gid = os.environ.get('GOOGLE_CLIENT_ID', '')
-print(f"[ENV] GOOGLE_CLIENT_ID 길이: {len(gid)}, 앞10자: {gid[:10]!r}")
-print(f"[ENV] RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', '(없음)')}")
-# 어떤 환경변수들이 들어오는지 목록 출력 (값은 숨김)
-known_keys = [k for k in os.environ if not k.startswith('PATH') and 'SECRET' not in k and 'KEY' not in k]
-print(f"[ENV] 환경변수 목록: {sorted(known_keys)}")
 
 if __name__ == '__main__':
     print("=" * 50)
