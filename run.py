@@ -1,7 +1,8 @@
 """앱 실행 진입점 — 환경변수 자동 로드"""
 import os
 from dotenv import load_dotenv
-load_dotenv(override=False)  # Railway 환경변수 우선, .env는 로컬에서만
+# override=False: 이미 설정된 환경변수(Railway Variables)를 .env로 덮어쓰지 않음
+load_dotenv(override=False)
 
 from database import init_db
 from app import app
@@ -13,6 +14,7 @@ debug = os.environ.get('RAILWAY_ENVIRONMENT') is None
 # 환경변수 확인 로그
 gid = os.environ.get('GOOGLE_CLIENT_ID', '')
 print(f"[ENV] GOOGLE_CLIENT_ID 길이: {len(gid)}, 앞10자: {gid[:10]!r}")
+print(f"[ENV] RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', '(없음)')}")
 
 if __name__ == '__main__':
     print("=" * 50)
